@@ -1,0 +1,15 @@
+{
+  "name": "vtk-seed-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@kitware/vtk.js": "36.9.1"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

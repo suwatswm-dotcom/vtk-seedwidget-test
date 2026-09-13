@@ -129,8 +129,6 @@ try {
 
   widgetManager.addWidget(widget);
 
-  // Use the native SeedWidget interaction lifecycle.
-  widget.startInteract();
 
   // ------------------------------------------------------------
   // Diagnostics
@@ -175,5 +173,25 @@ try {
 
 } catch (error) {
   status.textContent = 'STARTUP ERROR';
-  diag(String(error && error.stack ? error.stack : error));
+
+  const errorType =
+    error && error.constructor
+      ? error.constructor.name
+      : 'unknown';
+
+  const errorMessage =
+    error && error.message
+      ? error.message
+      : String(error);
+
+  const errorStack =
+    error && error.stack
+      ? error.stack
+      : 'No stack available';
+
+  diag(
+    'ERROR TYPE: ' + errorType +
+    '\n\nMESSAGE:\n' + errorMessage +
+    '\n\nSTACK:\n' + errorStack
+  );
 }

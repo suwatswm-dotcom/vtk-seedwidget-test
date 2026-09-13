@@ -125,9 +125,17 @@ try {
   // ------------------------------------------------------------
   // Native SeedWidget
   // ------------------------------------------------------------
+  status.textContent = 'Creating SeedWidget...';
+
   const widget = vtkSeedWidget.newInstance();
 
+  status.textContent =
+    'SeedWidget created — adding to WidgetManager...';
+
   widgetManager.addWidget(widget);
+
+  status.textContent =
+    'SeedWidget added successfully.';
 
 
   // ------------------------------------------------------------

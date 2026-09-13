@@ -1,5 +1,5 @@
-
 import '@kitware/vtk.js/Rendering/Profiles/All';
+
 import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRenderWindow';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
@@ -8,128 +8,172 @@ import vtkImageSlice from '@kitware/vtk.js/Rendering/Core/ImageSlice';
 import vtkWidgetManager from '@kitware/vtk.js/Widgets/Core/WidgetManager';
 import vtkSeedWidget from '@kitware/vtk.js/Widgets/Widgets3D/SeedWidget';
 
-const app = document.getElementById('app');
+const container = document.getElementById('app');
 
-app.innerHTML = `
-<style>
-html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;font-family:sans-serif}
-#view{position:absolute;inset:0;background:#111}
-#diag{position:absolute;left:10px;top:10px;z-index:10;background:rgba(255,255,255,.94);
-padding:10px 12px;border-radius:8px;font-size:13px;max-width:330px}
-</style>
-<div id="view"></div>
-<div id="diag">Starting SeedWidget image test...</div>`;
+container.innerHTML = `
+  <div style="font-family:Arial,sans-serif;padding:12px">
+    <div style="font-size:20px;font-weight:bold;margin-bottom:8px">
+      VTK.js SeedWidget — Native ES Module Test
+    </div>
 
-const diag = document.getElementById('diag');
+    <div id="status"
+      style="padding:8px;background:#eee;margin-bottom:8px">
+      Starting...
+    </div>
 
-function setDiag(text) {
-  diag.innerHTML = text;
+    <div id="diagnostics"
+      style="font-family:monospace;font-size:13px;white-space:pre-wrap;
+             padding:8px;background:#f5f5f5;margin-bottom:8px">
+    </div>
+
+    <div id="vtk-container"
+      style="width:100%;height:500px;border:1px solid #999">
+    </div>
+  </div>
+`;
+
+const status = document.getElementById('status');
+const diagnostics = document.getElementById('diagnostics');
+const vtkContainer = document.getElementById('vtk-container');
+
+function diag(text) {
+  diagnostics.textContent = text;
 }
 
 try {
-  const image = vtkImageData.newInstance();
+  // ------------------------------------------------------------
+  // Renderer
+  // ------------------------------------------------------------
+  const genericRenderWindow = vtkGenericRenderWindow.newInstance({
+    background: [0.15, 0.15, 0.15],
+  });
+
+  genericRenderWindow.setContainer(vtkContainer);
+
+  const renderer = genericRenderWindow.getRenderer();
+  const renderWindow = genericRenderWindow.getRenderWindow();
+
+  // ------------------------------------------------------------
+  // Synthetic 2D image
+  // ------------------------------------------------------------
   const width = 500;
   const height = 500;
 
-  image.setDimensions(width, height, 1);
-  image.setSpacing(1, 1, 1);
-  image.setOrigin(0, 0, 0);
+  const imageData = vtkImageData.newInstance();
+
+  imageData.setDimensions(width, height, 1);
+  imageData.setSpacing(1, 1, 1);
+  imageData.setOrigin(0, 0, 0);
 
   const values = new Uint8Array(width * height);
 
   for (let j = 0; j < height; j++) {
     for (let i = 0; i < width; i++) {
-      const dx = i - width / 2;
-      const dy = j - height / 2;
-      const r = Math.sqrt(dx * dx + dy * dy);
+      let value = 35;
 
-      let v = 28;
-      if (r < 180) v = 55;
-      if (r < 145) v = 85;
-      if (r < 105) v = 125;
+      // Crosshair
+      if (Math.abs(i - width / 2) <= 1) value = 220;
+      if (Math.abs(j - height / 2) <= 1) value = 220;
 
-      if (Math.abs(i - 250) < 1 || Math.abs(j - 250) < 1) {
-        v = 180;
-      }
-
-      values[j * width + i] = v;
+      values[j * width + i] = value;
     }
   }
 
-  image.getPointData().setScalars(
-    vtkDataArray.newInstance({
-      name: 'SyntheticXray',
-      numberOfComponents: 1,
-      values,
-    })
-  );
-
-  const mapper = vtkImageMapper.newInstance();
-  mapper.setInputData(image);
-  mapper.setSlicingMode(vtkImageMapper.SlicingMode.K);
-
-  const slice = vtkImageSlice.newInstance();
-  slice.setMapper(mapper);
-
-  const grw = vtkGenericRenderWindow.newInstance({
-    background: [0.05, 0.05, 0.05],
+  const scalars = vtkDataArray.newInstance({
+    name: 'Scalars',
+    values,
+    numberOfComponents: 1,
   });
 
-  grw.setContainer(document.getElementById('view'));
+  imageData.getPointData().setScalars(scalars);
 
-  const renderer = grw.getRenderer();
-  const renderWindow = grw.getRenderWindow();
+  // ------------------------------------------------------------
+  // Image mapper / slice
+  // ------------------------------------------------------------
+  const imageMapper = vtkImageMapper.newInstance();
 
-  renderer.addViewProp(slice);
+  imageMapper.setInputData(imageData);
+  imageMapper.setSlicingMode('K');
+  imageMapper.setSlice(0);
 
+  const imageSlice = vtkImageSlice.newInstance();
+
+  imageSlice.setMapper(imageMapper);
+
+  renderer.addViewProp(imageSlice);
+
+  // ------------------------------------------------------------
+  // Fixed 2D camera
+  // ------------------------------------------------------------
   const camera = renderer.getActiveCamera();
+
   camera.setParallelProjection(true);
-  camera.setPosition(0, 0, 1000);
-  camera.setFocalPoint(0, 0, 0);
+  camera.setFocalPoint(250, 250, 0);
+  camera.setPosition(250, 250, 1000);
   camera.setViewUp(0, 1, 0);
 
   renderer.resetCamera();
-  grw.resize();
 
+  // ------------------------------------------------------------
+  // Widget manager
+  // ------------------------------------------------------------
   const widgetManager = vtkWidgetManager.newInstance();
+
   widgetManager.setRenderer(renderer);
   widgetManager.enablePicking();
 
+  // ------------------------------------------------------------
+  // Native SeedWidget
+  // ------------------------------------------------------------
   const widget = vtkSeedWidget.newInstance();
+
   widgetManager.addWidget(widget);
 
-  widgetManager.grabFocus(widget);
+  // Use the native SeedWidget interaction lifecycle.
+  widget.startInteract();
 
-  const state = widget.getWidgetState();
-  const handle = state.getMoveHandle();
+  // ------------------------------------------------------------
+  // Diagnostics
+  // ------------------------------------------------------------
+  function updateDiagnostics() {
+    const state = widget.getWidgetState();
+    const handle = state.getMoveHandle();
+    const origin = handle ? handle.getOrigin() : null;
 
-  state.onModified(() => {
-    const origin = handle.getOrigin();
+    let text =
+      'SeedWidget: CREATED\n' +
+      'Move handle: ' + (handle ? 'PRESENT' : 'NONE') + '\n';
 
     if (origin) {
-      const ijk = image.worldToIndex(origin);
-
-      setDiag(`
-        <b>SeedWidget: ACTIVE</b><br>
-        Seed placed.<br><br>
-        <b>World</b>: ${origin.map(v => Number(v).toFixed(2)).join(', ')}<br>
-        <b>Image index (i,j,k)</b>: ${ijk.map(v => Number(v).toFixed(2)).join(', ')}
-      `);
+      text +=
+        'Seed placed: YES\n' +
+        'World: [' +
+        origin.map(v => Number(v).toFixed(2)).join(', ') +
+        ']\n';
+    } else {
+      text +=
+        'Seed placed: NO\n' +
+        'Tap the image to place the seed.\n';
     }
+
+    diag(text);
+  }
+
+  widget.onModified(() => {
+    updateDiagnostics();
+    renderWindow.render();
   });
 
+  updateDiagnostics();
+
+  status.textContent =
+    'READY — tap the image once to place the native SeedWidget point.';
+
+  genericRenderWindow.resize();
+  renderer.resetCamera();
   renderWindow.render();
 
-  setDiag(`
-    <b>SeedWidget: READY</b><br>
-    Tap the image once.<br><br>
-    Expected: one point appears at the tap position.<br>
-    No pan, rotation, or measurement in this test.
-  `);
-
-} catch (err) {
-  setDiag(`
-    <b style="color:red">STARTUP ERROR</b><br>
-    <pre style="white-space:pre-wrap">${String(err)}</pre>
-  `);
+} catch (error) {
+  status.textContent = 'STARTUP ERROR';
+  diag(String(error && error.stack ? error.stack : error));
 }
